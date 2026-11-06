@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logbook Radiologi</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1d2733;--mute:#6b7785;--line:#dfe4ea;--pri:#0f6e8c;--pri2:#0b536a;--ok:#2e7d32;--bad:#c62828;--warn:#fff4d6}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--pri);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;font-weight:600}
+nav{display:flex;gap:4px;margin-left:auto}
+nav button{background:transparent;color:#fff;border:0;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:14px}
+nav button.on{background:rgba(255,255,255,.22);font-weight:600}
+main{padding:18px 20px;max-width:1800px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.bar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px}
+.bar label{display:flex;flex-direction:column;font-size:12px;color:var(--mute);gap:3px}
+input,select,button,textarea{font:inherit}
+input,select,textarea{border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;color:var(--ink)}
+button.b{background:var(--pri);color:#fff;border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
+button.b:hover{background:var(--pri2)}
+button.g{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+button.g:hover{background:#eef2f6}
+button.danger{color:var(--bad)}
+.sp{flex:1}
+.tw{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;background:#fff}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:middle}
+th{position:sticky;top:0;background:#eaf1f5;font-size:11px;text-transform:uppercase;letter-spacing:.03em;z-index:1}
+tr:hover td{background:#f8fbfd}
+td input,td select{padding:3px 5px;font-size:13px}
+td input[type=text],td input:not([type]){min-width:70px}
+td input.n{width:72px;min-width:0}
+td input.n2{width:62px;min-width:0}
+td .qk{max-width:130px}
+td.r{text-align:right}
+.combo{display:inline-flex;gap:4px;align-items:center}
+.combo .ci{width:150px}
+.combo .ci[hidden]{display:none}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}
+.hide{display:none}
+.drop{border:2px dashed #9db4c0;border-radius:10px;padding:26px;text-align:center;color:var(--mute);cursor:pointer;background:#fafcfd}
+.drop.over{background:#e6f3f8;border-color:var(--pri)}
+.prog{height:8px;background:#e3e9ee;border-radius:5px;overflow:hidden;margin:10px 0}
+.prog i{display:block;height:100%;width:0;background:var(--pri);transition:width .2s}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpi b{display:block;font-size:24px}.kpi span{color:var(--mute);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px}
+.grid .card{margin:0}.grid h3{margin:0 0 8px;font-size:14px}
+.chartbox{position:relative;height:290px}
+.note{color:var(--mute);font-size:12px}
+.dup{background:var(--warn)}
+dialog{border:0;border-radius:12px;padding:20px;width:min(720px,94vw);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+dialog label{display:flex;flex-direction:column;font-size:12px;color:var(--mute);gap:3px}
+dialog label .combo{display:flex}
+dialog label .combo .ci{flex:1;width:auto}
+dialog .full{grid-column:1/-1}
+dialog menu{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;margin:6px 0 0;padding:0}
+textarea{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.conn{font-size:12px;padding:3px 10px;border-radius:12px;background:rgba(255,255,255,.2)}
+.conn::before{content:"● ";color:#ffb4b4}.conn.ok::before{color:#8be28b}
+#pwDlg{width:min(360px,92vw)}#pwDlg form{display:block}#pwDlg input{width:100%}
+td select[data-jt]{min-width:150px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🩻 Logbook Radiologi</h1>
+  <nav>
+    <button data-tab="log" class="on">Logbook</button>
+    <button data-tab="upload">Unggah &amp; OCR</button>
+    <button data-tab="tarif">Tarif Jasa Dokter</button>
+    <button data-tab="stat">Statistik</button>
+  </nav>
+  <span id="conn" class="conn">memuat…</span>
+</header>
+<main>
+
+<!-- FILTER (dipakai Logbook & Statistik) -->
+<div id="filterBar" class="card bar">
+  <label>Dari tanggal<input type="date" id="fFrom"></label>
+  <label>Sampai tanggal<input type="date" id="fTo"></label>
+  <label>Jenis pasien<select id="fJenis"></select></label>
+  <label>Asal<select id="fAsal"></select></label>
+  <label>Cari<input type="search" id="fQ" placeholder="nama / RM / pemeriksaan / dokter"></label>
+  <button class="g" id="fReset">Reset</button>
+  <span class="sp"></span>
+  <button class="b" id="btnExport">⬇ Export Excel</button>
+</div>
+
+<!-- TAB LOGBOOK -->
+<section id="tab-log">
+  <div id="migrate" class="card hide"><b id="migTxt"></b> <button class="b" id="btnMigrate">Upload ke Firebase</button></div>
+  <div class="card">
+    <div class="bar" style="margin-bottom:10px">
+      <button class="b" id="btnAdd">+ Tambah manual</button>
+      <button class="g" id="btnBackup">Backup (JSON)</button>
+      <button class="g" id="btnRestore">Restore (JSON)</button>
+      <input type="file" id="restoreFile" accept=".json" class="hide">
+      <button class="g danger" id="btnClear">Hapus semua data</button>
+      <span class="sp"></span>
+      <span class="note" id="logCount"></span>
+    </div>
+    <div class="tw">
+      <table id="logTable">
+        <thead><tr></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="note">Kolom isian (selesai periksa, tipe, jumlah film, faktor eksposi, radiografer, bahaya radiasi, radiolog, jasa dokter, rujuk, dll.) bisa diisi langsung di tabel dan tersimpan otomatis. Untuk mengubah tanggal, nama, pemeriksaan, biaya, atau dokter pengirim, klik Edit. Data tersimpan di Firebase Realtime Database dan otomatis sinkron di semua perangkat. Jasa dokter: pilih tingkat pada dropdown (terisi otomatis sesuai Asal).</p>
+  </div>
+</section>
+
+<!-- TAB UPLOAD -->
+<section id="tab-upload" class="hide">
+  <div class="card">
+    <div class="drop" id="drop">
+      <b>Klik, seret, atau tempel (Ctrl+V) tangkapan layar JPG/PNG di sini</b><br>
+      <span class="note">Bisa banyak gambar sekaligus. OCR berjalan di browser Anda, gambar tidak dikirim ke server.</span>
+      <input type="file" id="imgFile" accept="image/*" multiple class="hide">
+    </div>
+    <div class="prog hide" id="prog"><i></i></div>
+    <div class="note" id="progTxt"></div>
+    <div id="preview" class="hide" style="margin-top:14px">
+      <div class="bar">
+        <label>Radiolog default (jika penanggung jawab bukan dr. Dinar)
+          <input id="defRadiolog" value="dr. Dinar Lestari, Sp.Rad" style="min-width:260px">
+        </label>
+        <button class="g" id="btnReparse">Parse ulang dari teks OCR</button>
+        <span class="sp"></span>
+        <button class="b" id="btnSave">Simpan ke Logbook</button>
+      </div>
+      <div class="tw" style="max-height:50vh">
+        <table id="prevTable">
+          <thead><tr></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="note">Periksa dan koreksi hasil OCR sebelum disimpan. Nama pasien tidak akan memuat nama asal (Assyifa, Firdaus, Salsabila, Multazam, Poli Umum, Poli Dalam, Poli Anak, Rujukan Luar, UGD); nama-nama itu masuk ke kolom Asal. Baris yang sudah ada di logbook (No. Rawat + pemeriksaan sama) ditandai duplikat dan tidak dicentang otomatis. Kolom isian lain (selesai periksa, film, faktor eksposi, dll.) diisi setelah tersimpan, langsung di tabel Logbook.</p>
+      <details><summary>Teks hasil OCR (bisa diedit, lalu klik "Parse ulang")</summary>
+        <textarea id="rawText" rows="12"></textarea>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- TAB TARIF -->
+<section id="tab-tarif" class="hide">
+  <div class="card">
+    <div class="bar"><b>A. Jasa Dokter Pemeriksaan Radiologi</b><button class="g" id="btnTarifEdit">🔒 Edit tarif</button></div>
+    <div class="tw"><table id="tarifTable"><thead><tr></tr></thead><tbody></tbody></table></div>
+    <p class="note">Tingkat 1 (Terendah) otomatis untuk asal: Assyifa (rawat inap), Poli Umum, Poli Dalam, Poli Anak, UGD, Rujukan Luar. Multazam = Tingkat 2, Salsabila = Tingkat 3, Firdaus = Tingkat 4. Tingkat 5 (USG) dipilih manual. Perubahan tarif tidak mengubah nominal baris logbook yang sudah tersimpan.</p>
+  </div>
+</section>
+
+<!-- TAB STATISTIK -->
+<section id="tab-stat" class="hide">
+  <div class="kpis" id="kpis"></div>
+  <div class="grid">
+    <div class="card"><h3>Pemeriksaan per hari</h3><div class="chartbox"><canvas id="cDay"></canvas></div></div>
+    <div class="card"><h3>Biaya per hari (Rp)</h3><div class="chartbox"><canvas id="cBiaya"></canvas></div></div>
+    <div class="card"><h3>Jenis pasien</h3><div class="chartbox"><canvas id="cJenis"></canvas></div></div>
+    <div class="card"><h3>Asal pasien</h3><div class="chartbox"><canvas id="cAsal"></canvas></div></div>
+    <div class="card"><h3>10 pemeriksaan terbanyak</h3><div class="chartbox"><canvas id="cExam"></canvas></div></div>
+    <div class="card"><h3>Jenis kelamin</h3><div class="chartbox"><canvas id="cJK"></canvas></div></div>
+    <div class="card"><h3>Tipe pemeriksaan</h3><div class="chartbox"><canvas id="cTipe"></canvas></div></div>
+    <div class="card"><h3>Pengulangan foto</h3><div class="chartbox"><canvas id="cUlang"></canvas></div></div>
+    <div class="card"><h3>Kepatuhan marker R/L</h3><div class="chartbox"><canvas id="cMarker"></canvas></div></div>
+    <div class="card"><h3>Jenis dokter pengirim</h3><div class="chartbox"><canvas id="cJD"></canvas></div></div>
+    <div class="card"><h3>Dokter pengirim (10 teratas)</h3><div class="chartbox"><canvas id="cKirim"></canvas></div></div>
+    <div class="card"><h3>Radiografer</h3><div class="chartbox"><canvas id="cRadiografer"></canvas></div></div>
+    <div class="card"><h3>Radiolog</h3><div class="chartbox"><canvas id="cRadiolog"></canvas></div></div>
+    <div class="card"><h3>Sebaran per jam periksa</h3><div class="chartbox"><canvas id="cJam"></canvas></div></div>
+  </div>
+</section>
+
+</main>
+
+<datalist id="dlTarif"></datalist>
+<dialog id="pwDlg"><form method="dialog"><h3 style="margin:0 0 6px">Konfirmasi password</h3><p class="note" id="pwMsg"></p>
+<input type="password" id="pwInp" autocomplete="off" placeholder="Password"><menu><button type="button" class="g" id="pwCancel">Batal</button><button class="b" value="ok">OK</button></menu></form></dialog>
+<dialog id="dlg">
+  <form method="dialog" id="frm"></form>
+</dialog>
+
+<script>
+(() => {
+/* ================= PENGATURAN ================= */
+const FIREBASE_CONFIG = {
+  // apiKey: "ISI_JIKA_DIPERLUKAN",   // opsional untuk Realtime Database
+  databaseURL: "https://radiologi-logbook-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "radiologi-logbook",
+  messagingSenderId: "851397722942",
+  appId: "1:851397722942:web:7b202a33c68593f4c5e26f"
+};
+// Password hapus TIDAK disimpan polos, hanya sidik SHA-256-nya.
+// Ganti password: buka situs > F12 > Console > ketik:  await hashPw('passwordBaru')  > tempel hasilnya ke DEL_HASH.
+const DEL_HASH = '06fdc02460f406eb09a60685e0871cd6625cb607ee9f033782a5897687408692';
+const SALT = 'logbook-radiologi|';
+const OLD_KEY = 'logbook_radiologi_v1';
+/* ============================================= */
+const DEFAULT_READER = 'dr. Dinar Lestari, Sp.Rad';
+const ASAL   = ['Assyifa','Firdaus','Salsabila','Multazam','Poli Umum','Poli Dalam','Poli Anak','Rujukan Luar','UGD'];
+const JENIS  = ['X RAY UMUM','X RAY BPJS','USG UMUM','USG BPJS'];
+const TIPE   = ['Reguler','Cito','Hasil Kritis'];
+const BAHAYA = [3500,4200,5000,6000,7000];
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ---------- helper umum ---------- */
+const toNum = s => parseInt(String(s ?? '').replace(/[.,]\d{1,2}$/,'').replace(/\D/g,'')) || 0;
+const fmtRp = n => (+n || 0).toLocaleString('id-ID');
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtDate = iso => iso ? iso.split('-').reverse().join('-') : '';
+const pad = n => String(n).padStart(2,'0');
+const todayISO = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+const nowHHMM = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const toMin = t => { if (!t) return null; const p = String(t).split(':'); return (+p[0])*60 + (+p[1] || 0); };
+const durasi = r => { const a = toMin(r.jam), b = toMin(r.jamSelesai); if (a == null || b == null) return ''; let d = b - a; if (d < 0) d += 1440; return d; };
+const durText = r => { const d = durasi(r); return d === '' ? '' : d; };
+const guessJD = p => !p ? '' : (/\bSp\.?\s?[A-Za-z]/i.test(p) ? 'Spesialis' : 'Umum');
+
+/* ---------- Firebase ---------- */
+let db = null;
+try { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); } catch(e){ console.error(e); }
+const clean = r => JSON.parse(JSON.stringify(r));
+const fail = e => alert('Gagal menyimpan ke Firebase: ' + (e.message || e));
+const saveRow = r => db && db.ref('logbook/' + r.id).set(clean(r)).catch(fail);
+const setConn = ok => { const c = $('#conn'); c.textContent = ok ? 'Terhubung' : 'Offline'; c.className = 'conn ' + (ok ? 'ok' : 'off'); };
+const sig = a => a.map(r => Object.keys(r).sort().map(k => r[k]).join('~')).sort().join('\n');
+
+/* ---------- Password hapus ---------- */
+async function sha(s){ const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join(''); }
+window.hashPw = pw => sha(SALT + pw);
+function askPw(msg){
+  return new Promise(res => {
+    const d = $('#pwDlg'), inp = $('#pwInp');
+    $('#pwMsg').textContent = msg; inp.value = '';
+    $('#pwCancel').onclick = () => d.close('cancel');
+    d.addEventListener('close', async function f(){
+      d.removeEventListener('close', f);
+      if (d.returnValue !== 'ok') return res(false);
+      let ok = false;
+      try { ok = (await hashPw(inp.value)) === DEL_HASH; } catch(e){ alert('Butuh HTTPS (GitHub Pages) agar password bisa diperiksa.'); }
+      inp.value = ''; if (!ok) alert('Password salah.'); res(ok);
+    });
+    d.returnValue = ''; d.showModal(); inp.focus();
+  });
+}
+
+/* ---------- Tarif jasa dokter ---------- */
+const TNAME = ['Terendah','Multazam','Salsabila','Firdaus','Tingkat 5'];
+const ASAL_TIER = { Multazam:2, Salsabila:3, Firdaus:4 };   // asal lain = Tingkat 1 (terendah)
+const K=[37500,37500,41250,45000,48750], B=[60000,60000,66000,72000,78000], C=[26250,26250,28875,31500,34125],
+      D=[22500,22500,24750,27000,29250], E=[33000,33000,36300,39600,42900], F=[49500,49500,54450,59400,64350],
+      G=[30000,30000,33000,36000,39000], H=[52500,52500,57750,63000,68250];
+const S4=[52000,55000,60000,64000], P4=[50000,55000,60000,64000], L4=[66000,70000,74000,76000], T4=[66000,70000,73000,76000];
+const TARIF0 = [
+ ['Thorax',[40000,46000,54000,58000]],['Lumbal',L4],['Abdomen 3 Posisi',[124000,138000,160000,174000]],['Kepala',[36000,39000,41000,43000]],
+ ['Cervical',[66000,80000,88000,96000]],['Clavicula',[33000,40000,44000,48000]],['Shoulder',S4],['Humerus',S4],['Antebrachi',S4],['Elbow',S4],
+ ['Thoracholumbal',[45600,54720,65664,78796]],['Thorachal',L4],['Pedis',P4],['Ankle',P4],['Genu',P4],['Cruris',T4],['Femur',T4],['Manus',S4],
+ ['USG Abdomen Atas',K],['USG Abdomen Bawah',K],['USG Abdomen Atas Bawah',B],['USG Vesika Urinaria (Urologi)',C],['USG Prostat',C],['USG Apendix',C],
+ ['USG Mamae Satu Sisi',D],['USG Mamae Dua Sisi',E],['USG Dopler Vena Ekstremitas Atas Satu Sisi',E],['USG Dopler Vena Ekstremitas Atas Dua Sisi',F],
+ ['USG Dopler Arteri Ekstremitas Satu Sisi',E],['USG Dopler Arteri Ekstremitas Dua Sisi',F],['USG Musculoskeletal per Regio',E],
+ ['USG Carotis Satu Sisi',E],['USG Carotis Dua Sisi',F],['USG Benjolan Ekstremitas',C],['USG Benjolan Axilla',C],['USG Tiroid',C],['USG Tiroid Dopler',K],
+ ['USG Soft Tissue Leher',C],['USG Pungsi Efusi Pleura',K],['USG Thorax',C],['USG Uterus',C],['USG Testis',C],['USG Transvaginal',C],
+ ['USG OBGYN',G],['USG IBGYN 4D',H],['USG Kepala',E],['USG Kepala Dopler',H],['USG Coli',E]];
+const tarifObj = () => Object.fromEntries(TARIF0.map((t,i) => ['t' + pad(i+1), { no:i+1, nama:t[0], v:t[1] }]));
+const nk = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g,'');
+const isU = s => /usg|ultraso/i.test(s);
+function tarifFor(r){
+  const byId = r.tarifId && tarif.find(x => x.id === r.tarifId); if (byId) return byId;
+  const q = nk(r.pemeriksaan); if (q.length < 3) return null;
+  const c = tarif.filter(x => isU(x.nama) === isU(r.pemeriksaan));
+  return c.filter(x => q.includes(nk(x.nama))).sort((x,y) => nk(y.nama).length - nk(x.nama).length)[0]
+      || c.filter(x => nk(x.nama).includes(q)).sort((x,y) => nk(x.nama).length - nk(y.nama).length)[0] || null;
+}
+const autoTier = (asal, t) => Math.min(ASAL_TIER[asal] || 1, t.v.length);
+function autoJasa(r){ const t = tarifFor(r); if (!t) return; r.tarifId = t.id; if (!r.jasaManual){ r.jasaTier = autoTier(r.asal, t); r.jasaDokter = t.v[r.jasaTier-1] ?? ''; } }
+function jasaCell(r){
+  const t = tarifFor(r), a = `data-id="${r.id}"`, man = r.jasaDokter !== '' ? 'Rp ' + fmtRp(r.jasaDokter) + ' (manual)' : '';
+  if (!t) return `<select ${a} data-jp class="qk"><option value="">${man || 'pilih tarif…'}</option>` + tarif.map(x => `<option value="${x.id}">${esc(x.nama)}</option>`).join('') + '</select>';
+  return `<select ${a} data-jt>` + (r.jasaTier ? '' : `<option value="">${man || '— pilih —'}</option>`) +
+    t.v.map((v,i) => `<option value="${i+1}" ${+r.jasaTier === i+1 ? 'selected' : ''}>${TNAME[i]} · ${fmtRp(v)}</option>`).join('') + '</select>';
+}
+let tarifOpen = false;
+function renderTarif(){
+  $('#tarifTable thead tr').innerHTML = ['No','Pemeriksaan',...TNAME.map((n,i) => `T${i+1} ${n}`)].map(h => `<th>${h}</th>`).join('');
+  let last = null;
+  $('#tarifTable tbody').innerHTML = tarif.map(t => {
+    const u = isU(t.nama); let sec = '';
+    if (u !== last){ sec = `<tr><td colspan="7" style="background:#eef6f9;font-weight:600">${u ? 'USG' : 'X-RAY'}</td></tr>`; last = u; }
+    return sec + `<tr><td>${t.no}</td><td>${tarifOpen ? `<input data-tid="${t.id}" data-tn value="${esc(t.nama)}" style="width:280px">` : esc(t.nama)}</td>` +
+      [0,1,2,3,4].map(j => tarifOpen ? `<td><input type="number" class="n" data-tid="${t.id}" data-tj value="${t.v[j] ?? ''}"></td>` : `<td class="r">${t.v[j] != null ? fmtRp(t.v[j]) : '–'}</td>`).join('') + '</tr>';
+  }).join('');
+  $('#dlTarif').innerHTML = tarif.map(t => `<option value="${esc(t.nama)}">`).join('');
+}
+$('#tarifTable').addEventListener('change', e => {
+  const t = e.target, x = tarif.find(z => z.id === t.dataset.tid); if (!x) return;
+  if (t.dataset.tn !== undefined) return db.ref('tarif/' + x.id + '/nama').set(t.value.trim()).catch(fail);
+  const vals = [...t.closest('tr').querySelectorAll('[data-tj]')].map(i => i.value === '' ? null : +i.value);
+  const n = vals.indexOf(null), v = n < 0 ? vals : vals.slice(0, n);
+  if (!v.length){ alert('Tingkat 1 wajib diisi.'); return renderTarif(); }
+  db.ref('tarif/' + x.id + '/v').set(v).catch(fail);
+});
+$('#btnTarifEdit').onclick = async () => {
+  if (!tarifOpen && !(await askPw('Masukkan password untuk mengedit tarif.'))) return;
+  tarifOpen = !tarifOpen; $('#btnTarifEdit').textContent = tarifOpen ? '🔓 Kunci tarif' : '🔒 Edit tarif'; renderTarif();
+};
+
+/* ---------- Sinkron Firebase ---------- */
+const oldRows = () => { try { return JSON.parse(localStorage.getItem(OLD_KEY)) || []; } catch(e){ return []; } };
+function checkMigrate(){ const n = oldRows().length; $('#migrate').classList.toggle('hide', !n); $('#migTxt').textContent = n + ' data lama ditemukan di browser ini.'; }
+$('#btnMigrate').onclick = async () => {
+  const upd = {}; oldRows().forEach(r => { const n = normalize(r); upd['logbook/' + n.id] = clean(n); });
+  try { await db.ref().update(upd); } catch(e){ return fail(e); }
+  localStorage.setItem(OLD_KEY + '_backup', localStorage.getItem(OLD_KEY)); localStorage.removeItem(OLD_KEY); checkMigrate();
+};
+function startSync(){
+  if (!db){ setConn(false); $('#logCount').textContent = 'Firebase gagal dimuat — periksa koneksi internet.'; return; }
+  db.ref('.info/connected').on('value', s => setConn(!!s.val()));
+  db.ref('tarif').on('value', s => {
+    if (!s.exists()){ db.ref('tarif').set(tarifObj()).catch(fail); return; }
+    tarif = Object.entries(s.val()).map(([id,t]) => ({ id, no:t.no || 0, nama:t.nama || '', v:Object.values(t.v || {}).map(Number) })).sort((a,b) => a.no - b.no);
+    renderTarif(); refresh();
+  }, fail);
+  db.ref('logbook').on('value', s => {
+    const arr = Object.entries(s.val() || {}).map(([id,r]) => normalize({ ...r, id }));
+    if (loaded && sig(arr) === sig(data)) return;
+    loaded = true; data = arr; refresh();
+  }, fail);
+  checkMigrate();
+}
+
+/* ---------- definisi kolom isian ---------- */
+const FD = {
+  tgl:{l:'Tanggal', t:'date'},
+  jam:{l:'Jam periksa', t:'time', step:1},
+  jamSelesai:{l:'Selesai periksa', t:'time'},
+  rm:{l:'No RM', t:'text'},
+  nama:{l:'Nama', t:'text'},
+  jk:{l:'Jenis kelamin', t:'select', o:['L','P']},
+  asal:{l:'Asal', t:'select', o:ASAL},
+  pemeriksaan:{l:'Nama pemeriksaan', t:'text'},
+  biaya:{l:'Biaya (Rp)', t:'number'},
+  pengirim:{l:'Dokter pengirim', t:'text'},
+  jenisDokter:{l:'Jenis dokter', t:'select', o:['Umum','Spesialis']},
+  jenis:{l:'Jenis pasien', t:'select', o:JENIS, nb:1},
+  tipe:{l:'Tipe pemeriksaan', t:'select', o:TIPE, nb:1},
+  jumlahFilm:{l:'Jumlah film', t:'number'},
+  ulang:{l:'Pengulangan foto', t:'select', o:['Tidak','Ya'], nb:1},
+  kv:{l:'Faktor eksposi kV', t:'number'},
+  mas:{l:'Faktor eksposi mAs', t:'number'},
+  marker:{l:'Kepatuhan penggunaan marker R/L', t:'select', o:['Ya','Tidak']},
+  radiografer:{l:'Radiografer', t:'combo', p:['Umar Said']},
+  bahaya:{l:'Bahaya radiasi', t:'select', o:BAHAYA, fmt:fmtRp},
+  radiolog:{l:'Radiolog', t:'combo', p:[DEFAULT_READER]},
+  jasaDokter:{l:'Jasa dokter (Rp)', t:'number'},
+  rujuk:{l:'Rujuk', t:'select', o:['Tidak','Ya'], nb:1}
+};
+const NUMF = new Set(['biaya','jumlahFilm','kv','mas','bahaya','jasaDokter']);
+
+function conv(k, val){
+  if (k === 'biaya') return toNum(val);
+  if (NUMF.has(k)){
+    if (val === '' || val == null) return '';
+    const n = parseFloat(String(val).replace(',','.'));
+    return isNaN(n) ? '' : n;
+  }
+  return typeof val === 'string' ? val.trim() : val;
+}
+
+const newRow = (o = {}) => ({
+  id: uid(), noRawat:'', kode:'',
+  tgl:'', jam:'', jamSelesai:'', rm:'', nama:'', jk:'', asal:'', pemeriksaan:'', biaya:0,
+  pengirim:'', jenisDokter:'', jenis:'X RAY UMUM', tipe:'Reguler', jumlahFilm:'', ulang:'Tidak',
+  kv:'', mas:'', marker:'', radiografer:'Umar Said', bahaya:'', radiolog:DEFAULT_READER, jasaDokter:'', rujuk:'Tidak', tarifId:'', jasaTier:'', jasaManual:false,
+  ...o
+});
+
+function normalize(r){
+  const o = { ...newRow(), ...r };
+  if (o.jenis === 'UMUM' || o.jenis === 'BPJS') o.jenis = (/usg/i.test(o.pemeriksaan) ? 'USG ' : 'X RAY ') + o.jenis;
+  if (r.pembaca !== undefined && r.radiolog === undefined) o.radiolog = r.pembaca;
+  delete o.pembaca;
+  if (/dinar/i.test(o.radiolog)) o.radiolog = DEFAULT_READER;
+  if (!o.jenisDokter) o.jenisDokter = guessJD(o.pengirim);
+  return o;
+}
+
+let data = [], tarif = [], loaded = false;
+let prev = [];          // baris hasil OCR yang belum disimpan
+let editingId = null;
+let charts = {};
+
+/* ---------- komponen sel (select / input / combo) ---------- */
+function cell(k, v, attr, cls = ''){
+  const f = FD[k]; v = v ?? '';
+  if (f.t === 'select'){
+    const opts = [...f.o];
+    if (v !== '' && !opts.map(String).includes(String(v))) opts.push(v);
+    return `<select ${attr} data-f="${k}" class="${cls}">${f.nb ? '' : '<option value=""></option>'}` +
+      opts.map(o => `<option value="${esc(o)}" ${String(o) === String(v) ? 'selected' : ''}>${esc(f.fmt ? f.fmt(o) : o)}</option>`).join('') + '</select>';
+  }
+  if (f.t === 'combo'){
+    const other = v !== '' && !f.p.includes(v);
+    return `<span class="combo" ${attr} data-f="${k}"><select class="cs"><option value=""></option>` +
+      f.p.map(o => `<option value="${esc(o)}" ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('') +
+      `<option value="__other" ${other ? 'selected' : ''}>Lainnya…</option></select>` +
+      `<input class="ci" ${other ? '' : 'hidden'} value="${other ? esc(v) : ''}" placeholder="isi manual"></span>`;
+  }
+  const extra = f.t === 'number' ? ' step="any" min="0"' : (f.step ? ` step="${f.step}"` : '');
+  return `<input type="${f.t}" ${attr} data-f="${k}" class="${cls}" value="${esc(v)}"${extra}>`;
+}
+function comboValue(span){
+  const s = span.querySelector('.cs');
+  return s.value === '__other' ? span.querySelector('.ci').value.trim() : s.value;
+}
+function comboSel(sel){ // true bila "Lainnya…" dipilih (tampilkan kotak isian)
+  const c = sel.closest('.combo'), ci = c.querySelector('.ci'), o = sel.value === '__other';
+  ci.hidden = !o; if (o) ci.focus();
+  return o;
+}
+const jenisTag = j => `<span class="tag" style="background:${/BPJS/.test(j) ? '#e8f5e9;color:#1b5e20' : '#e3f2fd;color:#0d47a1'}">${esc(j)}</span>`;
+
+/* ---------- Tabs ---------- */
+$$('nav button').forEach(b => b.onclick = () => {
+  $$('nav button').forEach(x => x.classList.toggle('on', x === b));
+  ['log','upload','tarif','stat'].forEach(t => $('#tab-'+t).classList.toggle('hide', t !== b.dataset.tab));
+  $('#filterBar').classList.toggle('hide', ['upload','tarif'].includes(b.dataset.tab));
+  if (b.dataset.tab === 'stat') renderStats();
+});
+
+/* ---------- Filter ---------- */
+$('#fJenis').innerHTML = '<option value="">Semua</option>' + JENIS.map(j => `<option>${j}</option>`).join('');
+$('#fAsal').innerHTML  = '<option value="">Semua</option>' + ASAL.map(a => `<option>${a}</option>`).join('');
+function filtered(){
+  const f = $('#fFrom').value, t = $('#fTo').value, j = $('#fJenis').value, a = $('#fAsal').value, q = $('#fQ').value.trim().toLowerCase();
+  return data.filter(r =>
+    (!f || r.tgl >= f) && (!t || r.tgl <= t) && (!j || r.jenis === j) && (!a || r.asal === a) &&
+    (!q || [r.nama,r.rm,r.pemeriksaan,r.pengirim,r.radiolog,r.radiografer,r.asal].join(' ').toLowerCase().includes(q))
+  ).sort((x,y) => (x.tgl+(x.jam||'')).localeCompare(y.tgl+(y.jam||'')));
+}
+['fFrom','fTo','fJenis','fAsal','fQ'].forEach(id => $('#'+id).addEventListener('input', refresh));
+$('#fReset').onclick = () => { ['fFrom','fTo','fJenis','fAsal','fQ'].forEach(id => $('#'+id).value=''); refresh(); };
+
+function refresh(){
+  renderTable();
+  if (!$('#tab-stat').classList.contains('hide')) renderStats();
+}
+
+/* ---------- Tabel logbook ---------- */
+const LHEAD = ['No','Tgl','No RM','Nama','JK','Asal','Nama Pemeriksaan','Biaya (Rp)','Jam Periksa','Selesai Periksa','Durasi (mnt)',
+  'Dokter Pengirim','Jenis Dokter','Jenis Pasien','Tipe Pemeriksaan','Jml Film','Ulang Foto','Faktor Eksposi (kV / mAs)','Kepatuhan Marker R/L',
+  'Radiografer','Bahaya Radiasi','Radiolog','Jasa Dokter (Rp)','Rujuk',''];
+$('#logTable thead tr').innerHTML = LHEAD.map(h => `<th>${h}</th>`).join('');
+
+function quickOpts(r){
+  const a = toMin(r.jam);
+  let o = '<option value="">⏱ pilih</option>';
+  if (a != null) [5,10,15,20,30,45,60].forEach(n => {
+    const m = (a + n) % 1440, t = pad(Math.floor(m/60)) + ':' + pad(m%60);
+    o += `<option value="${t}">${t} (+${n} mnt)</option>`;
+  });
+  return o + '<option value="now">Sekarang</option>';
+}
+
+function renderTable(){
+  const rows = filtered();
+  $('#logTable tbody').innerHTML = rows.map((r,i) => {
+    const a = `data-id="${r.id}"`;
+    return `<tr>
+      <td>${i+1}</td><td>${fmtDate(r.tgl)}</td><td>${esc(r.rm)}</td><td>${esc(r.nama)}</td>
+      <td>${cell('jk', r.jk, a)}</td><td>${cell('asal', r.asal, a)}</td>
+      <td>${esc(r.pemeriksaan)}</td><td class="r">${r.biaya ? fmtRp(r.biaya) : ''}</td>
+      <td>${esc(r.jam)}</td>
+      <td><input type="time" ${a} data-f="jamSelesai" value="${esc(r.jamSelesai)}" style="width:96px"> <select class="qk" data-quick="${r.id}">${quickOpts(r)}</select></td>
+      <td class="dur r">${durText(r)}</td>
+      <td>${esc(r.pengirim)}</td><td>${cell('jenisDokter', r.jenisDokter, a)}</td>
+      <td>${cell('jenis', r.jenis, a)}</td><td>${cell('tipe', r.tipe, a)}</td>
+      <td>${cell('jumlahFilm', r.jumlahFilm, a, 'n')}</td><td>${cell('ulang', r.ulang, a)}</td>
+      <td>${cell('kv', r.kv, a, 'n2')} / ${cell('mas', r.mas, a, 'n2')}</td>
+      <td>${cell('marker', r.marker, a)}</td>
+      <td>${cell('radiografer', r.radiografer, a)}</td><td>${cell('bahaya', r.bahaya, a)}</td>
+      <td>${cell('radiolog', r.radiolog, a)}</td><td class="jc">${jasaCell(r)}</td>
+      <td>${cell('rujuk', r.rujuk, a)}</td>
+      <td><button class="g" data-edit="${r.id}">Edit</button> <button class="g danger" data-del="${r.id}">✕</button></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="${LHEAD.length}" style="text-align:center;color:#888;padding:24px">${loaded ? '' : 'Memuat data dari Firebase… '}Belum ada data. Unggah gambar di tab "Unggah &amp; OCR".</td></tr>`;
+  const sum = k => rows.reduce((a,r) => a + (+r[k] || 0), 0);
+  $('#logCount').textContent = `${rows.length} dari ${data.length} baris · Biaya Rp ${fmtRp(sum('biaya'))} · Film ${fmtRp(sum('jumlahFilm'))} · Bahaya radiasi Rp ${fmtRp(sum('bahaya'))} · Jasa dokter Rp ${fmtRp(sum('jasaDokter'))}`;
+}
+
+$('#logTable').addEventListener('click', async e => {
+  const ed = e.target.dataset.edit, del = e.target.dataset.del;
+  if (ed) openDialog(data.find(r => r.id === ed));
+  if (del && await askPw('Hapus baris ini? Masukkan password.')){ data = data.filter(r => r.id !== del); db.ref('logbook/' + del).remove().catch(fail); refresh(); }
+});
+
+// simpan otomatis saat isian di tabel diubah
+$('#logTable').addEventListener('change', e => {
+  const t = e.target, combo = t.closest('.combo');
+  if (t.dataset.jt !== undefined || t.dataset.jp !== undefined){
+    const r = data.find(x => x.id === t.dataset.id); if (!r) return;
+    if (t.dataset.jp !== undefined){ if (!t.value) return; r.tarifId = t.value; r.jasaManual = false; autoJasa(r); }
+    else { const x = tarifFor(r); r.jasaManual = true; r.jasaTier = +t.value || ''; r.jasaDokter = t.value ? x.v[t.value - 1] : ''; }
+    saveRow(r); t.closest('td').innerHTML = jasaCell(r); return renderCount();
+  }
+  let id, k, val;
+  if (t.dataset.quick !== undefined){
+    if (!t.value) return;
+    id = t.dataset.quick; k = 'jamSelesai'; val = t.value === 'now' ? nowHHMM() : t.value;
+  } else if (combo){
+    if (t.classList.contains('cs') && comboSel(t)) return;
+    id = combo.dataset.id; k = combo.dataset.f; val = comboValue(combo);
+  } else if (t.dataset.f && t.dataset.id){
+    id = t.dataset.id; k = t.dataset.f; val = t.value;
+  } else return;
+  const r = data.find(x => x.id === id); if (!r) return;
+  r[k] = conv(k, val);
+  if (k === 'asal'){ autoJasa(r); t.closest('tr').querySelector('.jc').innerHTML = jasaCell(r); }
+  saveRow(r);
+  if (k === 'jamSelesai'){
+    const tr = t.closest('tr');
+    tr.querySelector('input[data-f="jamSelesai"]').value = r.jamSelesai;
+    tr.querySelector('.dur').textContent = durText(r);
+    tr.querySelector('.qk').value = '';
+  }
+  $('#logCount').textContent && renderCount();
+});
+function renderCount(){
+  const rows = filtered(), sum = k => rows.reduce((a,r) => a + (+r[k] || 0), 0);
+  $('#logCount').textContent = `${rows.length} dari ${data.length} baris · Biaya Rp ${fmtRp(sum('biaya'))} · Film ${fmtRp(sum('jumlahFilm'))} · Bahaya radiasi Rp ${fmtRp(sum('bahaya'))} · Jasa dokter Rp ${fmtRp(sum('jasaDokter'))}`;
+}
+
+/* ---------- Dialog tambah/edit ---------- */
+const dlg = $('#dlg'), frm = $('#frm');
+const DLG_ORDER = ['tgl','jam','jamSelesai','rm','nama','jk','asal','jenis','jenisDokter','pemeriksaan','biaya','pengirim',
+  'tipe','jumlahFilm','ulang','kv','mas','marker','radiografer','bahaya','radiolog','rujuk'];
+const DLG_FULL = new Set(['pemeriksaan','pengirim','radiolog']);
+function openDialog(r){
+  editingId = r ? r.id : null;
+  const v = r ? { ...r } : newRow({ tgl: todayISO() });
+  frm.innerHTML = `<h3 class="full" style="margin:0">${r ? 'Edit data' : 'Tambah data'}</h3>` +
+    DLG_ORDER.map(k => {
+      let ctrl = cell(k, v[k], '');
+      if (k === 'pemeriksaan') ctrl = ctrl.replace('<input','<input list="dlTarif"');
+      if (k === 'jamSelesai') ctrl += `<select class="dq"><option value="">⏱ pilih otomatis</option>` +
+        [5,10,15,20,30,45,60].map(n => `<option value="${n}">+${n} mnt dari jam periksa</option>`).join('') + `<option value="now">Sekarang</option></select>`;
+      return `<label class="${DLG_FULL.has(k) ? 'full' : ''}">${FD[k].l}${ctrl}</label>`;
+    }).join('') +
+    `<menu><button type="button" class="g" id="dlgCancel">Batal</button><button class="b" value="ok">Simpan</button></menu>`;
+  dlg.showModal();
+}
+$('#btnAdd').onclick = () => openDialog(null);
+frm.addEventListener('click', e => { if (e.target.id === 'dlgCancel') dlg.close(); });
+frm.addEventListener('change', e => {
+  const t = e.target;
+  if (t.classList.contains('cs')) comboSel(t);
+  if (t.classList.contains('dq')){
+    let val = '';
+    if (t.value === 'now') val = nowHHMM();
+    else if (t.value){
+      const a = toMin(frm.querySelector('[data-f="jam"]').value);
+      if (a != null){ const m = (a + +t.value) % 1440; val = pad(Math.floor(m/60)) + ':' + pad(m%60); }
+      else alert('Isi jam periksa terlebih dahulu.');
+    }
+    if (val) frm.querySelector('[data-f="jamSelesai"]').value = val;
+    t.value = '';
+  }
+});
+frm.addEventListener('submit', e => {
+  if (e.submitter?.value !== 'ok') return;
+  const o = {};
+  DLG_ORDER.forEach(k => {
+    const el = FD[k].t === 'combo' ? frm.querySelector(`.combo[data-f="${k}"]`) : frm.querySelector(`[data-f="${k}"]`);
+    o[k] = conv(k, FD[k].t === 'combo' ? comboValue(el) : el.value);
+  });
+  if (!o.tgl || !o.nama || !o.pemeriksaan){ e.preventDefault(); alert('Tanggal, nama, dan nama pemeriksaan wajib diisi.'); return; }
+  let row;
+  if (editingId){ row = data.find(r => r.id === editingId); Object.assign(row, o); row.tarifId = ''; }
+  else { row = newRow(o); data.push(row); }
+  autoJasa(row); saveRow(row); refresh();
+});
+
+/* ---------- Backup / restore / hapus ---------- */
+$('#btnBackup').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,1)], {type:'application/json'}));
+  a.download = `logbook-radiologi-${todayISO()}.json`; a.click();
+};
+$('#btnRestore').onclick = () => $('#restoreFile').click();
+$('#restoreFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try{
+    const arr = JSON.parse(await f.text());
+    if (!Array.isArray(arr)) throw 0;
+    if (confirm(`Gabungkan ${arr.length} baris ke data saat ini? (OK = gabung, Batal = batalkan)`)){
+      const ids = new Set(data.map(r=>r.id));
+      const upd = {}; arr.forEach(r => { if (!ids.has(r.id)){ const n = normalize(r); data.push(n); upd['logbook/' + n.id] = clean(n); } });
+      db.ref().update(upd).catch(fail); refresh();
+    }
+  }catch(err){ alert('File JSON tidak valid.'); }
+  e.target.value = '';
+};
+$('#btnClear').onclick = async () => { if (confirm('Hapus SEMUA data logbook? Pastikan sudah backup.') && await askPw('Masukkan password untuk menghapus SEMUA data.')){ data = []; db.ref('logbook').remove().catch(fail); refresh(); } };
+
+/* ---------- OCR ---------- */
+const drop = $('#drop'), imgFile = $('#imgFile');
+drop.onclick = () => imgFile.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); runOCR([...e.dataTransfer.files]); };
+imgFile.onchange = () => { runOCR([...imgFile.files]); imgFile.value = ''; };
+document.addEventListener('paste', e => {
+  if ($('#tab-upload').classList.contains('hide')) return;
+  const fs = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
+  if (fs.length) runOCR(fs);
+});
+
+// perbesar gambar 2x + grayscale agar OCR lebih akurat
+function prepImage(file){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = img.width < 2200 ? 2 : 1;
+      const c = document.createElement('canvas'); c.width = img.width*k; c.height = img.height*k;
+      const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+      x.filter = 'grayscale(1) contrast(1.25)'; x.drawImage(img,0,0,c.width,c.height);
+      res(c);
+    };
+    img.onerror = rej; img.src = URL.createObjectURL(file);
+  });
+}
+
+async function runOCR(files){
+  files = files.filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+  const bar = $('#prog'), fill = bar.querySelector('i'), txt = $('#progTxt');
+  bar.classList.remove('hide'); let all = '';
+  try{
+    const worker = await Tesseract.createWorker('eng', 1, {
+      logger: m => { if (m.status === 'recognizing text') fill.style.width = Math.round(m.progress*100)+'%'; }
+    });
+    await worker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' });
+    for (let i = 0; i < files.length; i++){
+      txt.textContent = `Memproses gambar ${i+1} dari ${files.length}: ${files[i].name || 'tempelan'} …`;
+      fill.style.width = '0%';
+      const canvas = await prepImage(files[i]);
+      const { data:{ text } } = await worker.recognize(canvas);
+      all += text + '\n';
+    }
+    await worker.terminate();
+    txt.textContent = 'Selesai. Periksa hasil di bawah.';
+  }catch(err){
+    txt.textContent = 'OCR gagal: ' + (err.message || err) + ' (butuh koneksi internet untuk memuat mesin OCR pertama kali).';
+    return;
+  }finally{ setTimeout(() => bar.classList.add('hide'), 800); }
+  $('#rawText').value = all;
+  parseAndShow();
+}
+
+/* ---------- Parser teks OCR -> baris ---------- */
+// Nama asal (bukan nama pasien): dipetakan ke kolom Asal
+function mapAsal(s){
+  s = String(s || '');
+  if (/assyifa|asyifa|asy-?syifa/i.test(s)) return 'Assyifa';
+  if (/firdaus/i.test(s)) return 'Firdaus';
+  if (/salsabila|salsabil/i.test(s)) return 'Salsabila';
+  if (/multazam/i.test(s)) return 'Multazam';
+  if (/rujukan\s*luar|rujuk\s*luar/i.test(s)) return 'Rujukan Luar';
+  if (/\b(ugd|igd)\b|gawat\s*darurat/i.test(s)) return 'UGD';
+  if (/anak/i.test(s)) return 'Poli Anak';
+  if (/dalam/i.test(s)) return 'Poli Dalam';
+  if (/umum/i.test(s)) return 'Poli Umum';
+  return '';
+}
+
+function parseText(t){
+  const out = [];
+  const re = /(\d{4}[\/.\-]\d{2}[\/.\-]\d{2}[\/.\-]\d{6})/g;
+  const idx = []; let m;
+  while ((m = re.exec(t))) idx.push({pos:m.index, no:m[1].replace(/[.\-]/g,'/')});
+  idx.forEach((it, i) => {
+    const blk = t.slice(it.pos, i+1 < idx.length ? idx[i+1].pos : t.length);
+    const lines = blk.split('\n').map(s => s.replace(/\s+/g,' ').trim()).filter(Boolean);
+    const first = lines[0] || '';
+    const rest = first.slice(it.no.length).trim();
+
+    const rm = (rest.match(/^\D{0,3}(\d{4,7})\b/) || [])[1] || '';
+    const afterRm = rest.replace(/^\D{0,3}\d{4,7}\s*/, '');
+    const dIdx = afterRm.search(/\d{4}-\d{2}-\d{2}/);
+    const headStr = dIdx >= 0 ? afterRm.slice(0, dIdx) : afterRm;   // nama + (Poli : ...) + petugas
+
+    // --- nama pasien, jenis kelamin, dan sisa teks (zona asal) ---
+    let nama, after = '', jk = '';
+    const sm = headStr.match(/,\s*(TN|NY|NN|AN|BY)\b\.?/i);
+    if (sm){
+      nama = headStr.slice(0, sm.index);
+      after = headStr.slice(sm.index + sm[0].length);
+      const s = sm[1].toUpperCase();
+      jk = s === 'TN' ? 'L' : (s === 'NY' || s === 'NN') ? 'P' : '';
+    } else {
+      const p = headStr.indexOf('(');
+      nama = p >= 0 ? headStr.slice(0, p) : headStr;
+      after = p >= 0 ? headStr.slice(p) : '';
+      const tail = /\s+(assyifa|firdaus|salsabila|multazam|poli(\s*:)?(\s*(umum|dalam|anak))?|rujukan\s*luar|ugd|igd)\s*$/i;
+      let m2;
+      while ((m2 = nama.match(tail))){ after = m2[1] + ' ' + after; nama = nama.slice(0, m2.index); }
+      const s2 = nama.match(/\s+(TN|NY|NN)\.?\s*$/i);
+      if (s2){ jk = s2[1].toUpperCase() === 'TN' ? 'L' : 'P'; nama = nama.slice(0, s2.index); }
+    }
+    nama = nama.replace(/\(.*$/, '')
+               .replace(/\b(poli\s*(umum|dalam|anak)|rujukan\s*luar|ugd|igd)\b/ig, '')
+               .replace(/\s+/g,' ').replace(/[,.\s]+$/,'').trim();
+
+    // --- asal & petugas (radiografer) ---
+    const poliTxt = ((after.match(/Poli\s*:\s*([^)]*)/i) || [])[1] || '').trim();
+    const asal = mapAsal(poliTxt) || mapAsal(after) || poliTxt.toUpperCase();
+    let pet = /\)/.test(after) ? after.replace(/^[^)]*\)/, '') : '';
+    pet = pet.replace(/,?\s*\b(AMR|A\.?Md\.?Rad|S\.?Tr\.?Rad)\b.*$/i, '').replace(/^[\s,:]+|[\s,]+$/g, '');
+    const radiografer = (!pet || /umar\s*said/i.test(pet)) ? 'Umar Said' : pet;
+
+    // --- tanggal, jam, dokter ---
+    const tgl = (first.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || it.no.slice(0,10).replace(/\//g,'-');
+    const jamM = first.match(/(\d{2}:\d{2}:\d{2})/);
+    const jam = jamM ? jamM[1] : '';
+    const afterJam = jamM ? first.slice(first.indexOf(jamM[1]) + jam.length).trim() : '';
+    const docs = afterJam.split(/(?=\bdr\.?\s)/i).map(s => s.trim()).filter(Boolean);
+    const pengirim = (docs[0] || '').replace(/(\.{2,}|…)$/,'').replace(/[,\s]+$/,'').trim();
+    const pj = docs.length > 1 ? docs[docs.length-1] : '';
+
+    const bayarM = blk.match(/Cara\s*Bayar\s*:\s*([A-Za-z]+)/i);
+    const bayar = bayarM && /bpjs/i.test(bayarM[1]) ? 'BPJS' : 'UMUM';
+    const defR = ($('#defRadiolog')?.value || DEFAULT_READER).trim();
+    const radiolog = /dinar/i.test(pj) ? DEFAULT_READER : (pj.replace(/(\.{2,}|…)$/,'').trim() || defR);
+
+    // --- pemeriksaan + biaya ---
+    const exams = [];
+    const clean = l => l.replace(/[|\[\]{}_]/g,' ').replace(/^[>\s]+/,'').replace(/\s+/g,' ').trim();
+    const body = lines.slice(1).map(clean).filter(Boolean);
+    const hi = body.findIndex(l => /kode\s*periksa|nama\s*pemeriksaan/i.test(l));
+    body.slice(hi + 1).forEach(l => {
+      if (/^total\b/i.test(l) || /cara\s*bayar|proyeksi|dosis/i.test(l)) return;
+      let x = l.match(/^(\S+)\s+(.+?)\s+(\d{1,3}(?:[.,]\d{3})+|\d{4,})\s*$/);
+      if (x) { exams.push({kode:x[1], nama:x[2].trim(), biaya:toNum(x[3])}); return; }
+      x = l.match(/^(\S+-\S+)\s+(.+)$/);
+      if (x) { exams.push({kode:x[1], nama:x[2].trim(), biaya:0}); return; }
+    });
+    if (!exams.length) body.forEach(l => {
+      const x = l.match(/([A-Za-z0-9]{2,}\s?[-–—]\s?[A-Za-z]{1,4})\s+(.+?)(?:\s+(\d[\d.,]*))?$/);
+      if (x && !/cara\s*bayar|kode\s*periksa|total/i.test(l)) exams.push({kode:x[1], nama:x[2].trim(), biaya:toNum(x[3])});
+    });
+    if (!exams.length) exams.push({kode:'', nama:'', biaya:0});
+
+    exams.forEach(e => out.push(newRow({
+      noRawat:it.no, tgl, rm, nama, jk, asal, pemeriksaan:e.nama, kode:e.kode, biaya:e.biaya || 0, jam,
+      pengirim, jenisDokter:guessJD(pengirim),
+      jenis: (/usg|ultraso/i.test(e.nama + ' ' + e.kode) ? 'USG ' : 'X RAY ') + bayar,
+      radiografer, radiolog
+    })));
+  });
+  return out;
+}
+
+const PHEAD = ['','Tgl','No RM','Nama','JK','Asal','Pemeriksaan','Biaya (Rp)','Jam','Dokter Pengirim','Jenis Dokter','Jenis Pasien','Radiografer','Radiolog','Status'];
+$('#prevTable thead tr').innerHTML = PHEAD.map(h => `<th>${h}</th>`).join('');
+
+function parseAndShow(){
+  prev = parseText($('#rawText').value);
+  const keys = new Set(data.map(r => r.noRawat + '|' + r.pemeriksaan.toLowerCase()));
+  prev.forEach(r => { r.dup = !!r.noRawat && keys.has(r.noRawat + '|' + r.pemeriksaan.toLowerCase()); r.sel = !r.dup; });
+  $('#preview').classList.remove('hide');
+  renderPrev();
+  if (!prev.length) $('#progTxt').textContent = 'Tidak ada baris yang terbaca. Coba gambar yang lebih jelas atau koreksi teks OCR lalu parse ulang.';
+}
+$('#btnReparse').onclick = parseAndShow;
+
+function renderPrev(){
+  $('#prevTable tbody').innerHTML = prev.map((r,i) => {
+    const a = `data-i="${i}"`;
+    return `<tr class="${r.dup?'dup':''}">
+      <td><input type="checkbox" ${a} data-f="sel" ${r.sel?'checked':''}></td>
+      <td>${cell('tgl', r.tgl, a)}</td>
+      <td>${cell('rm', r.rm, a)}</td>
+      <td>${cell('nama', r.nama, a)}</td>
+      <td>${cell('jk', r.jk, a)}</td>
+      <td>${cell('asal', r.asal, a)}</td>
+      <td>${cell('pemeriksaan', r.pemeriksaan, a)}</td>
+      <td>${cell('biaya', r.biaya, a, 'n')}</td>
+      <td>${cell('jam', r.jam, a)}</td>
+      <td>${cell('pengirim', r.pengirim, a)}</td>
+      <td>${cell('jenisDokter', r.jenisDokter, a)}</td>
+      <td>${cell('jenis', r.jenis, a)}</td>
+      <td>${cell('radiografer', r.radiografer, a)}</td>
+      <td>${cell('radiolog', r.radiolog, a)}</td>
+      <td>${r.dup ? '<span class="note">duplikat</span>' : ''}</td>
+    </tr>`;
+  }).join('');
+}
+$('#prevTable').addEventListener('change', e => {
+  const t = e.target, c = t.closest('.combo');
+  let i, k, val;
+  if (c){
+    if (t.classList.contains('cs') && comboSel(t)) return;
+    i = c.dataset.i; k = c.dataset.f; val = comboValue(c);
+  } else {
+    i = t.dataset.i; k = t.dataset.f; if (i === undefined) return;
+    val = t.type === 'checkbox' ? t.checked : t.value;
+  }
+  prev[i][k] = k === 'sel' ? val : conv(k, val);
+});
+$('#btnSave').onclick = () => {
+  const pick = prev.filter(r => r.sel && (r.nama || r.pemeriksaan));
+  if (!pick.length){ alert('Tidak ada baris yang dicentang.'); return; }
+  const upd = {}; pick.forEach(r => { const {dup, sel, ...x} = r; x.biaya = toNum(x.biaya); const n = normalize(x); autoJasa(n); data.push(n); upd['logbook/' + n.id] = clean(n); });
+  db.ref().update(upd).catch(fail); prev = []; $('#preview').classList.add('hide'); $('#progTxt').textContent = `${pick.length} baris disimpan ke logbook.`;
+  refresh();
+  $('[data-tab=log]').click();
+};
+
+/* ---------- Statistik ---------- */
+function count(rows, fn){
+  const m = new Map();
+  rows.forEach(r => { const k = fn(r) || '(kosong)'; m.set(k, (m.get(k)||0)+1); });
+  return [...m.entries()].sort((a,b) => b[1]-a[1]);
+}
+function stats(){
+  const rows = filtered();
+  const sum = (arr, k) => arr.reduce((a,r) => a + (+r[k] || 0), 0);
+  const pasien = new Set(rows.map(r => r.noRawat || (r.rm+'|'+r.tgl)));
+  const durs = rows.map(durasi).filter(d => d !== '');
+  const biayaHari = (() => { const m = new Map(); rows.forEach(r => m.set(r.tgl, (m.get(r.tgl)||0) + (+r.biaya||0))); return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0])); })();
+  const nJ = j => rows.filter(r => r.jenis === j).length;
+  return {
+    rows,
+    total: rows.length,
+    pasien: pasien.size,
+    xrayUmum: nJ('X RAY UMUM'), xrayBpjs: nJ('X RAY BPJS'), usgUmum: nJ('USG UMUM'), usgBpjs: nJ('USG BPJS'),
+    biaya: sum(rows,'biaya'),
+    biayaUmum: sum(rows.filter(r => /UMUM/.test(r.jenis)), 'biaya'),
+    biayaBpjs: sum(rows.filter(r => /BPJS/.test(r.jenis)), 'biaya'),
+    biayaHari,
+    film: sum(rows,'jumlahFilm'),
+    ulangYa: rows.filter(r => r.ulang === 'Ya').length,
+    durAvg: durs.length ? durs.reduce((a,b)=>a+b,0)/durs.length : null,
+    cito: rows.filter(r => r.tipe === 'Cito').length,
+    kritis: rows.filter(r => r.tipe === 'Hasil Kritis').length,
+    rujukYa: rows.filter(r => r.rujuk === 'Ya').length,
+    markerYa: rows.filter(r => r.marker === 'Ya').length,
+    markerTidak: rows.filter(r => r.marker === 'Tidak').length,
+    marker: count(rows, r => r.marker || 'Belum diisi'),
+    bahaya: sum(rows,'bahaya'),
+    jasa: sum(rows,'jasaDokter'),
+    hari: count(rows, r=>r.tgl).sort((a,b)=>a[0].localeCompare(b[0])),
+    exam: count(rows, r=>r.pemeriksaan),
+    asal: count(rows, r=>r.asal),
+    kirim: count(rows, r=>r.pengirim),
+    radiolog: count(rows, r=>r.radiolog),
+    radiografer: count(rows, r=>r.radiografer),
+    jk: count(rows, r=>r.jk),
+    tipe: count(rows, r=>r.tipe),
+    jd: count(rows, r=>r.jenisDokter),
+    ulang: count(rows, r=>r.ulang),
+    jam: count(rows, r=>(r.jam||'').slice(0,2) ? (r.jam.slice(0,2)+':00') : '').sort((a,b)=>a[0].localeCompare(b[0])),
+    jenis: count(rows, r=>r.jenis)
+  };
+}
+function mk(id, type, pairs, label, horiz){
+  if (charts[id]) charts[id].destroy();
+  const pal = ['#0f6e8c','#e07a1f','#3b9c5a','#8e5ac8','#d1495b','#edae49','#00798c','#6c757d','#30638e','#a1c181'];
+  charts[id] = new Chart($('#'+id), {
+    type,
+    data:{ labels:pairs.map(p=>p[0]), datasets:[{ label, data:pairs.map(p=>p[1]),
+      backgroundColor: type==='line' ? 'rgba(15,110,140,.15)' : (type==='doughnut' ? pal : '#0f6e8c'),
+      borderColor:'#0f6e8c', fill:type==='line', tension:.25 }] },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis: horiz?'y':'x',
+      plugins:{ legend:{display: type==='doughnut'} },
+      scales: type==='doughnut' ? {} : { [horiz?'x':'y']:{beginAtZero:true, ticks:{precision:0}} } }
+  });
+}
+function renderStats(){
+  const s = stats();
+  $('#kpis').innerHTML = [
+    ['Total pemeriksaan', s.total], ['Jumlah pasien (kunjungan)', s.pasien],
+    ['X RAY UMUM', s.xrayUmum], ['X RAY BPJS', s.xrayBpjs], ['USG UMUM', s.usgUmum], ['USG BPJS', s.usgBpjs],
+    ['Total biaya (Rp)', fmtRp(s.biaya)], ['Biaya Umum (Rp)', fmtRp(s.biayaUmum)], ['Biaya BPJS (Rp)', fmtRp(s.biayaBpjs)],
+    ['Jumlah film', fmtRp(s.film)],
+    ['Pengulangan foto', s.ulangYa + (s.total ? ` (${(s.ulangYa/s.total*100).toFixed(1)}%)` : '')],
+    ['Rata-rata durasi (mnt)', s.durAvg == null ? '-' : s.durAvg.toFixed(1)],
+    ['Cito', s.cito], ['Hasil kritis', s.kritis], ['Dirujuk (Ya)', s.rujukYa],
+    ['Kepatuhan marker R/L', (s.markerYa + s.markerTidak) ? `${(s.markerYa/(s.markerYa+s.markerTidak)*100).toFixed(1)}% (${s.markerYa}/${s.markerYa+s.markerTidak})` : '-'],
+    ['Total bahaya radiasi (Rp)', fmtRp(s.bahaya)], ['Total jasa dokter (Rp)', fmtRp(s.jasa)],
+    ['Rata-rata / hari', s.hari.length ? (s.total/s.hari.length).toFixed(1) : 0]
+  ].map(k => `<div class="kpi"><b>${k[1]}</b><span>${k[0]}</span></div>`).join('');
+  mk('cDay','line', s.hari.map(p=>[fmtDate(p[0]),p[1]]), 'Pemeriksaan');
+  mk('cBiaya','bar', s.biayaHari.map(p=>[fmtDate(p[0]),p[1]]), 'Biaya (Rp)');
+  mk('cJenis','doughnut', s.jenis, 'Jenis');
+  mk('cAsal','bar', s.asal.slice(0,10), 'Jumlah', true);
+  mk('cExam','bar', s.exam.slice(0,10), 'Jumlah', true);
+  mk('cJK','doughnut', s.jk, 'JK');
+  mk('cTipe','doughnut', s.tipe, 'Tipe');
+  mk('cUlang','doughnut', s.ulang, 'Ulang');
+  mk('cMarker','doughnut', s.marker, 'Marker R/L');
+  mk('cJD','doughnut', s.jd, 'Jenis dokter');
+  mk('cKirim','bar', s.kirim.slice(0,10), 'Jumlah', true);
+  mk('cRadiografer','bar', s.radiografer.slice(0,10), 'Jumlah', true);
+  mk('cRadiolog','doughnut', s.radiolog, 'Radiolog');
+  mk('cJam','bar', s.jam, 'Jumlah');
+}
+
+/* ---------- Export Excel ---------- */
+$('#btnExport').onclick = () => {
+  const s = stats();
+  const head = ['No','Tgl','No RM','Nama','JK','Asal','Nama Pemeriksaan','Biaya (Rp)','Jam Periksa','Selesai Periksa','Durasi (mnt)',
+    'Dokter Pengirim','Jenis Dokter','Jenis Pasien','Tipe Pemeriksaan','Jumlah Film','Pengulangan Foto','Faktor Eksposi kV','Faktor Eksposi mAs','Kepatuhan Marker R/L',
+    'Radiografer','Bahaya Radiasi (Rp)','Radiolog','Jasa Dokter (Rp)','Rujuk'];
+  const v = x => (x === '' || x == null) ? '' : x;
+  const aoa = [head, ...s.rows.map((r,i) => [i+1, fmtDate(r.tgl), r.rm, r.nama, r.jk, r.asal, r.pemeriksaan, +r.biaya||0, r.jam, r.jamSelesai,
+    v(durasi(r)), r.pengirim, r.jenisDokter, r.jenis, r.tipe, v(r.jumlahFilm), r.ulang, v(r.kv), v(r.mas), v(r.marker), r.radiografer, v(r.bahaya), r.radiolog, v(r.jasaDokter), r.rujuk])];
+  const tot = new Array(head.length).fill('');
+  tot[6] = 'TOTAL'; tot[7] = s.biaya; tot[15] = s.film; tot[21] = s.bahaya; tot[23] = s.jasa;
+  aoa.push(tot);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [6,12,10,28,5,14,30,12,11,12,11,30,12,13,14,11,12,11,11,14,16,14,26,14,8].map(w=>({wch:w}));
+  ws['!autofilter'] = { ref: `A1:Y${aoa.length - 1}` };
+  for (let r = 2; r <= aoa.length; r++) ['H','V','X'].forEach(c => { const x = ws[c+r]; if (x && typeof x.v === 'number') x.z = '#,##0'; });
+
+  const st = [['STATISTIK LOGBOOK RADIOLOGI'],
+    ['Periode', ($('#fFrom').value ? fmtDate($('#fFrom').value) : 'awal') + ' s.d. ' + ($('#fTo').value ? fmtDate($('#fTo').value) : 'akhir')],
+    [], ['Total pemeriksaan', s.total], ['Jumlah pasien (kunjungan)', s.pasien],
+    ['X RAY UMUM', s.xrayUmum], ['X RAY BPJS', s.xrayBpjs], ['USG UMUM', s.usgUmum], ['USG BPJS', s.usgBpjs],
+    [], ['Total biaya (Rp)', s.biaya], ['Biaya Umum (Rp)', s.biayaUmum], ['Biaya BPJS (Rp)', s.biayaBpjs],
+    [], ['Jumlah film', s.film], ['Pengulangan foto (Ya)', s.ulangYa],
+    ['Rata-rata durasi (mnt)', s.durAvg == null ? '' : +s.durAvg.toFixed(1)],
+    ['Cito', s.cito], ['Hasil kritis', s.kritis], ['Dirujuk (Ya)', s.rujukYa],
+    ['Kepatuhan marker R/L (Ya)', s.markerYa], ['Kepatuhan marker R/L (Tidak)', s.markerTidak],
+    ['Total bahaya radiasi (Rp)', s.bahaya], ['Total jasa dokter (Rp)', s.jasa]];
+  const sec = (title, pairs) => { st.push([], [title, 'Jumlah'], ...pairs.map(p => [p[0], p[1]])); };
+  sec('Per hari', s.hari.map(p=>[fmtDate(p[0]),p[1]]));
+  sec('Biaya per hari (Rp)', s.biayaHari.map(p=>[fmtDate(p[0]),p[1]]));
+  sec('Per jenis pasien', s.jenis); sec('Per asal', s.asal); sec('Per pemeriksaan', s.exam);
+  sec('Jenis kelamin', s.jk); sec('Tipe pemeriksaan', s.tipe); sec('Pengulangan foto', s.ulang); sec('Kepatuhan marker R/L', s.marker);
+  sec('Jenis dokter pengirim', s.jd); sec('Per dokter pengirim', s.kirim);
+  sec('Per radiografer', s.radiografer); sec('Per radiolog', s.radiolog); sec('Per jam', s.jam);
+  const ws2 = XLSX.utils.aoa_to_sheet(st); ws2['!cols'] = [38,14];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Logbook');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Statistik');
+  XLSX.writeFile(wb, `Logbook-Radiologi-${todayISO()}.xlsx`);
+};
+
+renderTarif();
+refresh();
+startSync();
+})();
+</script>
+</body>
+</html>
