@@ -80,6 +80,8 @@ td select[data-jt]{min-width:150px}
     <button data-tab="log" class="on">Logbook</button>
     <button data-tab="upload">Unggah &amp; OCR</button>
     <button data-tab="tarif">Tarif Jasa Dokter</button>
+    <button data-tab="kontak">Kontak</button>
+    <button data-tab="pesan">Template Pesan</button>
     <button data-tab="stat">Statistik</button>
   </nav>
   <span id="conn" class="conn">memuat…</span>
@@ -154,6 +156,25 @@ td select[data-jt]{min-width:150px}
   </div>
 </section>
 
+<!-- TAB KONTAK -->
+<section id="tab-kontak" class="hide"><div class="card">
+  <div class="bar"><label>Nomor HP<input id="kNo" placeholder="0815…"></label><label>Nama<input id="kNama"></label>
+    <label>Catatan<input id="kCat" placeholder="mis. USG besok" style="min-width:240px"></label>
+    <button class="b" id="kSave">+ Tambah nomor</button><button class="g hide" id="kCancel">Batal</button></div>
+  <div class="tw"><table id="kTable"><thead><tr><th>Nomor</th><th>Nama</th><th>Catatan</th><th></th></tr></thead><tbody></tbody></table></div>
+  <p class="note">Klik Edit untuk mengubah (tombol berganti menjadi Save). Hapus memakai password. Tombol WA membuka WhatsApp ke nomor tersebut.</p>
+</div></section>
+
+<!-- TAB PESAN -->
+<section id="tab-pesan" class="hide"><div class="card">
+  <div class="bar"><label>Template<select id="mT"><option value="pengingat">Pengingat USG</option><option value="hasil">Hasil Pemeriksaan</option></select></label>
+    <label>Kirim ke kontak<select id="mK"></select></label><label>atau nomor<input id="mNo" placeholder="0815…"></label></div>
+  <textarea id="mTxt" rows="24" style="font-family:inherit;font-size:14px"></textarea>
+  <div class="bar" style="margin:10px 0 0"><button class="b" id="mSave">Simpan template</button><button class="g" id="mReset">Kembalikan bawaan</button><span class="sp"></span>
+    <button class="g" id="mCopy">Salin</button><button class="b" id="mWa">Kirim WhatsApp</button></div>
+  <p class="note">Teks bisa diedit bebas (jam, biaya, dll.) sebelum disalin atau dikirim. "Simpan template" menyimpan perubahan ke Firebase. Jika nomor kosong, WhatsApp akan meminta Anda memilih penerima.</p>
+</div></section>
+
 <!-- TAB TARIF -->
 <section id="tab-tarif" class="hide">
   <div class="card">
@@ -180,7 +201,7 @@ td select[data-jt]{min-width:150px}
     <div class="card"><h3>Dokter pengirim (10 teratas)</h3><div class="chartbox"><canvas id="cKirim"></canvas></div></div>
     <div class="card"><h3>Radiografer</h3><div class="chartbox"><canvas id="cRadiografer"></canvas></div></div>
     <div class="card"><h3>Radiolog</h3><div class="chartbox"><canvas id="cRadiolog"></canvas></div></div>
-    <div class="card"><h3>Sebaran per jam periksa</h3><div class="chartbox"><canvas id="cJam"></canvas></div></div>
+    <div class="card"><h3>Sebaran &amp; durasi per jam periksa</h3><div class="chartbox"><canvas id="cJam"></canvas></div></div>
   </div>
 </section>
 
@@ -340,8 +361,67 @@ function startSync(){
     if (loaded && sig(arr) === sig(data)) return;
     loaded = true; data = arr; refresh();
   }, fail);
+  db.ref('kontak').on('value', s => { kontak = Object.entries(s.val() || {}).map(([id,k]) => ({ id, ...k })); renderKontak(); }, fail);
+  db.ref('templates').on('value', s => { tpl = s.val() || {}; if (document.activeElement !== $('#mTxt')) loadTpl(); }, fail);
   checkMigrate();
 }
+
+/* ---------- Kontak & template pesan ---------- */
+let kontak = [], tpl = {}, kEdit = null;
+const TPL0 = {
+pengingat: `Assalamu’alaikum warahmatullahi wabarakatuh.
+Yth. Bapak/Ibu,
+Kami mengingatkan bahwa besok pemeriksaan USG pukul 07.00 WIB. Mohon sudah hadir di Unit Radiologi tepat waktu.
+Mohon perhatikan persiapan berikut:
+
+1. Puasa makan 4 jam sebelum pemeriksaan, tetapi tetap boleh minum air mineral.
+2. Minum air mineral sekitar 30 menit sebelum pemeriksaan agar kandung kemih terisi dan gambar USG lebih optimal.
+3. Ibu-ibu: Disarankan memakai kaos polos lengan panjang, tanpa kalung, aksesori logam, dan bra.
+4. Bapak-bapak: Memakai kaos polos tanpa aksesori logam dan celana tanpa resleting.
+
+Alur pendaftaran: Langsung menuju Unit Radiologi dan menunggu antrean. Petugas akan membantu proses pendaftaran.
+Informasi tambahan:
+
+* Perkiraan biaya USG: Rp425.000,-
+* Hasil pemeriksaan diperkirakan 1 jam setelah pemeriksaan selesai, apabila proses berjalan normal.
+
+Terima kasih atas perhatian dan kerja samanya. Semoga pemeriksaan berjalan lancar.
+Wassalamu’alaikum warahmatullahi wabarakatuh.`,
+hasil: `Assalamu’alaikum warahmatullahi wabarakatuh.
+Yth. Bapak/Ibu, berikut kami lampirkan hasil pemeriksaan Radiologi. Terima kasih.
+Wassalamu’alaikum warahmatullahi wabarakatuh. Salam sehat.`
+};
+const waNo = n => { n = String(n || '').replace(/\D/g,''); return n.startsWith('0') ? '62' + n.slice(1) : n; };
+function renderKontak(){
+  $('#kTable tbody').innerHTML = kontak.map(k => `<tr><td>${esc(k.no)}</td><td>${esc(k.nama)}</td><td>${esc(k.cat)}</td>
+    <td><button class="g" data-ke="${k.id}">Edit</button> <button class="g danger" data-kd="${k.id}">Hapus</button> <button class="g" data-kw="${k.id}">WA</button></td></tr>`).join('')
+    || '<tr><td colspan="4" style="text-align:center;color:#888;padding:20px">Belum ada kontak.</td></tr>';
+  const cur = $('#mK').value;
+  $('#mK').innerHTML = '<option value="">— pilih kontak —</option>' + kontak.map(k => `<option value="${esc(k.no)}">${esc(k.nama || '')} ${esc(k.no)}</option>`).join('');
+  $('#mK').value = cur;
+}
+function kReset(){ kEdit = null; ['kNo','kNama','kCat'].forEach(i => $('#'+i).value = ''); $('#kSave').textContent = '+ Tambah nomor'; $('#kCancel').classList.add('hide'); }
+$('#kSave').onclick = () => {
+  const no = $('#kNo').value.trim(); if (!no){ alert('Nomor HP wajib diisi.'); return; }
+  const id = kEdit || uid();
+  db.ref('kontak/' + id).set({ no, nama:$('#kNama').value.trim(), cat:$('#kCat').value.trim() }).catch(fail); kReset();
+};
+$('#kCancel').onclick = kReset;
+$('#kTable').addEventListener('click', async e => {
+  const d = e.target.dataset, k = kontak.find(x => x.id === (d.ke || d.kd || d.kw)); if (!k) return;
+  if (d.ke){ kEdit = k.id; $('#kNo').value = k.no; $('#kNama').value = k.nama || ''; $('#kCat').value = k.cat || ''; $('#kSave').textContent = 'Save'; $('#kCancel').classList.remove('hide'); }
+  if (d.kw) window.open('https://wa.me/' + waNo(k.no), '_blank');
+  if (d.kd && await askPw('Hapus kontak ' + (k.nama || k.no) + '? Masukkan password.')) db.ref('kontak/' + k.id).remove().catch(fail);
+});
+const loadTpl = () => { $('#mTxt').value = tpl[$('#mT').value] ?? TPL0[$('#mT').value]; };
+$('#mT').onchange = loadTpl;
+$('#mSave').onclick = () => db.ref('templates/' + $('#mT').value).set($('#mTxt').value).then(() => alert('Template disimpan.')).catch(fail);
+$('#mReset').onclick = () => { if (confirm('Kembalikan template ini ke teks bawaan?')) db.ref('templates/' + $('#mT').value).remove().catch(fail), $('#mTxt').value = TPL0[$('#mT').value]; };
+$('#mCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('#mTxt').value); } catch(e){ $('#mTxt').select(); document.execCommand('copy'); }
+  alert('Pesan disalin.');
+};
+$('#mWa').onclick = () => window.open('https://wa.me/' + waNo($('#mNo').value || $('#mK').value) + '?text=' + encodeURIComponent($('#mTxt').value), '_blank');
 
 /* ---------- definisi kolom isian ---------- */
 const FD = {
@@ -437,8 +517,8 @@ const jenisTag = j => `<span class="tag" style="background:${/BPJS/.test(j) ? '#
 /* ---------- Tabs ---------- */
 $$('nav button').forEach(b => b.onclick = () => {
   $$('nav button').forEach(x => x.classList.toggle('on', x === b));
-  ['log','upload','tarif','stat'].forEach(t => $('#tab-'+t).classList.toggle('hide', t !== b.dataset.tab));
-  $('#filterBar').classList.toggle('hide', ['upload','tarif'].includes(b.dataset.tab));
+  ['log','upload','tarif','kontak','pesan','stat'].forEach(t => $('#tab-'+t).classList.toggle('hide', t !== b.dataset.tab));
+  $('#filterBar').classList.toggle('hide', ['upload','tarif','kontak','pesan'].includes(b.dataset.tab));
   if (b.dataset.tab === 'stat') renderStats();
 });
 
@@ -836,6 +916,12 @@ function count(rows, fn){
   rows.forEach(r => { const k = fn(r) || '(kosong)'; m.set(k, (m.get(k)||0)+1); });
   return [...m.entries()].sort((a,b) => b[1]-a[1]);
 }
+function durStats(rows){
+  const w = rows.map(r => ({ r, d: durasi(r) })).filter(x => x.d !== ''), m = new Map();
+  w.forEach(x => { const h = (x.r.jam || '').slice(0,2); if (!h) return; const k = h + ':00'; if (!m.has(k)) m.set(k, []); m.get(k).push(x.d); });
+  const jamDur = [...m.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([h,a]) => [h, +(a.reduce((x,y) => x+y, 0) / a.length).toFixed(1), Math.min(...a), Math.max(...a)]);
+  return { jamDur, durMin: w.length ? w.reduce((a,b) => b.d < a.d ? b : a) : null, durMax: w.length ? w.reduce((a,b) => b.d > a.d ? b : a) : null };
+}
 function stats(){
   const rows = filtered();
   const sum = (arr, k) => arr.reduce((a,r) => a + (+r[k] || 0), 0);
@@ -874,7 +960,8 @@ function stats(){
     jd: count(rows, r=>r.jenisDokter),
     ulang: count(rows, r=>r.ulang),
     jam: count(rows, r=>(r.jam||'').slice(0,2) ? (r.jam.slice(0,2)+':00') : '').sort((a,b)=>a[0].localeCompare(b[0])),
-    jenis: count(rows, r=>r.jenis)
+    jenis: count(rows, r=>r.jenis),
+    ...durStats(rows)
   };
 }
 function mk(id, type, pairs, label, horiz){
@@ -899,6 +986,8 @@ function renderStats(){
     ['Jumlah film', fmtRp(s.film)],
     ['Pengulangan foto', s.ulangYa + (s.total ? ` (${(s.ulangYa/s.total*100).toFixed(1)}%)` : '')],
     ['Rata-rata durasi (mnt)', s.durAvg == null ? '-' : s.durAvg.toFixed(1)],
+    ['Durasi tercepat (mnt)' + (s.durMin ? ' — ' + s.durMin.r.pemeriksaan : ''), s.durMin ? s.durMin.d : '-'],
+    ['Durasi terlama (mnt)' + (s.durMax ? ' — ' + s.durMax.r.pemeriksaan : ''), s.durMax ? s.durMax.d : '-'],
     ['Cito', s.cito], ['Hasil kritis', s.kritis], ['Dirujuk (Ya)', s.rujukYa],
     ['Kepatuhan marker R/L', (s.markerYa + s.markerTidak) ? `${(s.markerYa/(s.markerYa+s.markerTidak)*100).toFixed(1)}% (${s.markerYa}/${s.markerYa+s.markerTidak})` : '-'],
     ['Total bahaya radiasi (Rp)', fmtRp(s.bahaya)], ['Total jasa dokter (Rp)', fmtRp(s.jasa)],
@@ -917,7 +1006,16 @@ function renderStats(){
   mk('cKirim','bar', s.kirim.slice(0,10), 'Jumlah', true);
   mk('cRadiografer','bar', s.radiografer.slice(0,10), 'Jumlah', true);
   mk('cRadiolog','doughnut', s.radiolog, 'Radiolog');
-  mk('cJam','bar', s.jam, 'Jumlah');
+  const lab = s.jam.map(p => p[0]), dm = new Map(s.jamDur.map(x => [x[0], x])), dd = i => lab.map(h => dm.get(h) ? dm.get(h)[i] : null);
+  if (charts.cJam) charts.cJam.destroy();
+  charts.cJam = new Chart($('#cJam'), { data:{ labels:lab, datasets:[
+    { type:'bar', label:'Jumlah pemeriksaan', data:s.jam.map(p => p[1]), backgroundColor:'#0f6e8c', yAxisID:'y' },
+    { type:'line', label:'Rata-rata durasi (mnt)', data:dd(1), borderColor:'#e07a1f', backgroundColor:'#e07a1f', yAxisID:'y2', spanGaps:true },
+    { type:'line', label:'Terlama (mnt)', data:dd(3), borderColor:'#d1495b', backgroundColor:'#d1495b', borderDash:[5,4], yAxisID:'y2', spanGaps:true },
+    { type:'line', label:'Tercepat (mnt)', data:dd(2), borderColor:'#3b9c5a', backgroundColor:'#3b9c5a', borderDash:[5,4], yAxisID:'y2', spanGaps:true } ] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:true } }, scales:{
+      y:{ beginAtZero:true, ticks:{ precision:0 }, title:{ display:true, text:'Jumlah' } },
+      y2:{ position:'right', beginAtZero:true, grid:{ drawOnChartArea:false }, title:{ display:true, text:'Durasi (mnt)' } } } } });
 }
 
 /* ---------- Export Excel ---------- */
@@ -953,7 +1051,7 @@ $('#btnExport').onclick = () => {
   sec('Per jenis pasien', s.jenis); sec('Per asal', s.asal); sec('Per pemeriksaan', s.exam);
   sec('Jenis kelamin', s.jk); sec('Tipe pemeriksaan', s.tipe); sec('Pengulangan foto', s.ulang); sec('Kepatuhan marker R/L', s.marker);
   sec('Jenis dokter pengirim', s.jd); sec('Per dokter pengirim', s.kirim);
-  sec('Per radiografer', s.radiografer); sec('Per radiolog', s.radiolog); sec('Per jam', s.jam);
+  sec('Per radiografer', s.radiografer); sec('Per radiolog', s.radiolog); sec('Per jam', s.jam); sec('Rata-rata durasi per jam (mnt)', s.jamDur.map(x => [x[0], x[1]]));
   const ws2 = XLSX.utils.aoa_to_sheet(st); ws2['!cols'] = [38,14];
 
   const wb = XLSX.utils.book_new();
@@ -963,6 +1061,8 @@ $('#btnExport').onclick = () => {
 };
 
 renderTarif();
+renderKontak();
+loadTpl();
 refresh();
 startSync();
 })();
